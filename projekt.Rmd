@@ -1,0 +1,268 @@
+---
+title: '[PDB] Projekt z analizy danych'
+author: "Pawel Kaczmarek"
+date: "4 listopada 2018"
+output: 
+  html_document: 
+    fig_caption: yes
+    keep_md: yes
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+---
+
+## Opis projektu ##
+Poni¿ej punktowo przedstawiê moje za³o¿enie je¿eli chodzi o przetwarzanie danych w projekcie
+<ol>
+  <li>Podczas przetwarzania danych wyrzucone zosta³y kolumny zaznaczone na stronie na czerwono, których potem nie potrzebowa³em oraz te które posiadaj¹ w nazwie *skeleton_*, gdy¿ nie by³a o nich mowa na stronie.</li>
+  <li>Je¿eli chodzi o pozbycie siê wartoœci pustych to w przypadku kolumn liczbowych zosta³y one zast¹pione median¹, a w przypadku pozosta³ych wartoœci¹ 0</li>
+  <li>Do sprawdzenia korelacji wykorzystany zosta³ wspó³czynnik Pearsona, czyli domyœlny dla metody funkji cor() a przedstawione zosta³y te dla których wspó³czynnik ten by³ wy¿szy od 0.9</li>
+  <li>Do pokazania rozk³ady liczby atomów zosta³y wykorzystane histogramy</li>
+  <li>Rozk³ady dla kolumn rozpoczynaj¹cych siê od *part_01* zosta³y pokazane pzy pomocy boxplotóW dla ka¿dej z nich</li>
+  <li>Do rozwi¹zania zadania regresji wykorzysta³em regresjê liniow¹ *lm* z paczki caret</li>
+  <li>Do rozwi¹zania zadania klasyfikacji wykorzysta³em algorytm randomForest *rf*</li>
+</ol>
+
+## Wczytanie bibliotek ##
+#### Biblioteki wykorzystane do analizy danych: ####
+```{r Wczytanie bibliotek, error=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(tidyr)
+library(plotly)
+library(tibble)
+library(data.table)
+library(reshape)
+library(caret)
+library(dplyr)
+```
+
+## Wczytanie danych ##
+```{r Wczytanie danych, message=FALSE, warning=FALSE}
+colsToRemove = c("title","pdb_code", "res_id", "chain_id", "local_BAa", "local_NPa", "local_Ra", "local_RGa", "local_SRGa", "local_CCSa", "local_CCPa", "local_ZOa", "local_ZDa", "local_ZD_minus_a", "local_ZD_plus_a", "local_res_atom_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "part_step_FoFc_std_min", "part_step_FoFc_std_max", "part_step_FoFc_std_step","skeleton_data", "skeleton_cycle_4", "skeleton_diameter","skeleton_cycle_6","skeleton_cycle_7","skeleton_closeness_006_008","skeleton_closeness_002_004","skeleton_cycle_3", "skeleton_avg_degree", "skeleton_closeness_004_006", "skeleton_closeness_010_012", "skeleton_closeness_012_014", "skeleton_edges", "skeleton_radius", "skeleton_cycle_8_plus", "skeleton_closeness_020_030","skeleton_deg_5_plus", "skeleton_closeness_016_018", "skeleton_closeness_008_010", "skeleton_closeness_018_020", "skeleton_average_clustering", "skeleton_closeness_040_050", "skeleton_closeness_014_016", "skeleton_center", "skeleton_closeness_000_002", "skeleton_density", "skeleton_closeness_030_040", "skeleton_deg_4", "skeleton_deg_0", "skeleton_deg_1", "skeleton_deg_2", "skeleton_deg_3", "skeleton_graph_clique_number", "skeleton_nodes", "skeleton_cycles", "skeleton_cycle_5", "skeleton_closeness_050_plus", "skeleton_periphery")
+
+project_data <- fread("all_summary.csv", header = TRUE, drop = colsToRemove)
+dim(project_data)
+```
+
+## Odfiltrowanie na podstawie res_name ##
+```{r Filtracja, error=FALSE, warning=FALSE}
+res_name_to_remove <- c("UNK", "UNX", "UNL", "DUM", "N", "BLOB", "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE", "LEU", "LYS", "MET", "MSE", "PHE", "PRO", "SEC", "SER", "THR", "TRP", "TYR", "VAL", "DA", "DG", "DT", "DC", "DU", "A", "G", "T", "C", "U", "HOH", "H20", "WAT")
+
+
+filtered_data <- project_data %>%
+  filter(!res_name %in% res_name_to_remove)
+
+rm(project_data)
+gc()
+
+dim(filtered_data)
+```
+
+## Przetwarzanie brakuj¹cych danych ##
+```{r Wartosci puste, error=FALSE, warning=FALSE}
+sum(is.na(filtered_data))
+
+data_without_NA <- filtered_data %>%
+  mutate_if(is.integer, funs(replace(., is.na(.), median(., na.rm = TRUE)))) %>%
+  mutate_if(is.numeric, funs(replace(., is.na(.), median(., na.rm = TRUE)))) %>%
+  replace(is.na(.), 0)
+
+rm(filtered_data)
+gc()
+```
+
+## Podstawowe statystyki ##
+```{r Podsumowanie, error=FALSE, warning=FALSE }
+knitr::kable(t(summary(data_without_NA)))
+dim(data_without_NA)
+```
+
+## 50 najliczniejszych klas ##
+```{r Grupowanie, error=FALSE, warning=FALSE, message=FALSE }
+sum(is.na(data_without_NA))
+
+top_res_names <- data_without_NA %>%
+  group_by(res_name) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count)) %>%
+  top_n(50)
+
+data_top_res_names <- data_without_NA %>%
+  filter(res_name %in% top_res_names$res_name )
+
+rm(data_without_NA)
+gc()
+
+dim(data_top_res_names)
+```
+
+## Korelacja miêdzy zmiennymi ##
+```{r Korelacja, error=FALSE, warning=FALSE }
+corelationDF <- data_top_res_names %>%
+  select_if(is.numeric) %>%
+  as.matrix %>%
+  cor %>%
+  as.data.frame %>%
+  rownames_to_column(var = 'var1') %>%
+  gather(var2, value, -var1)
+
+best <- filter(corelationDF, value > 0.9, var1 != var2) %>%
+  arrange(desc(value))
+
+knitr::kable(best)
+
+rm(corelationDF)
+gc()
+```
+
+## Liczba przyk³adów klas ##
+```{r Liczba przyk?ad?w }
+data_grouped_by_res_name <- data_top_res_names %>%
+  group_by(res_name) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count))
+
+sum(data_grouped_by_res_name$count)
+knitr::kable(data_grouped_by_res_name)
+
+rm(data_grouped_by_res_name)
+gc()
+```
+
+## Wykresy rozk³adów liczby atomów ##
+```{r Wykresy }
+plot_1 <- ggplot(data_top_res_names, aes(local_res_atom_non_h_count)) +
+  geom_histogram(binwidth = 2)
+ggplotly(plot_1)
+
+plot_2 <- ggplot(data_top_res_names, aes(local_res_atom_non_h_electron_sum)) +
+  geom_histogram(binwidth = 20)
+ggplotly(plot_2)
+
+rm(plot_1, plot_2)
+gc()
+```
+
+## Klasy z najwiêksz¹ niezgodnoœci¹ ##
+#### *local_res_atom_non_h_count* **vs** *dict_atom_non_h_count* ####
+```{r Tabela rozbieznosci 1 }
+data_top_res_names %>%
+  select(res_name, local_res_atom_non_h_count, dict_atom_non_h_count) %>%
+  distinct(res_name, .keep_all = TRUE) %>%
+  mutate(diff = abs(local_res_atom_non_h_count - dict_atom_non_h_count)) %>%
+  arrange(desc(diff)) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+## Klasy z najwiêksz¹ niezgodnoœci¹ ##
+#### *local_res_atom_non_h_electron_sum* **vs** *dict_atom_non_h_electron_sum* ####
+```{r Tabela rozbieznosci 2 }
+data_top_res_names %>%
+  select(res_name, local_res_atom_non_h_electron_sum, dict_atom_non_h_electron_sum) %>%
+  distinct(res_name, .keep_all = TRUE) %>%
+  mutate(diff = abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum)) %>%
+  arrange(desc(diff)) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+## Rozk³ad wartoœci zmiennych part_01 ##
+```{r Rozklad part_01, fig.height=60, fig.width=12}
+
+dataToSHow <- data_top_res_names %>%
+  select(starts_with("part_01")) %>%
+  rename_at(vars(starts_with('part_01')), funs(paste0(substr(., 9, nchar(.)))))
+
+meltData <- melt(dataToSHow)
+
+mean_fun <- function(x){
+  return(data.frame(y = (max(x)+min(x))/2, label = paste0("m=",round(mean(x),2))))
+}
+
+
+p <- ggplot(meltData, aes(x="", value)) + 
+  geom_boxplot(size=.75, outlier.shape = NA ) +
+  stat_summary(fun.data=mean_fun, geom="text", size=3) + 
+  stat_summary(fun.y=mean, geom="point", shape=20, size=5, color="red") +
+  facet_wrap(~variable, scales = "free", ncol = 6)
+
+plot(p)
+
+rm(dataToSHow, meltData, p)
+gc()
+
+```
+
+## Regresja ##
+#### Przewidywanie liczby elektronów - *local_electrons* ####
+```{r regresja, message=FALSE, warning=FALSE}
+set.seed(23)
+regressionData <- data_top_res_names %>%
+  select_if(is.numeric)
+
+
+inTraining <- createDataPartition(
+        y = regressionData$local_electrons,
+        p = .70,
+        list = FALSE)
+
+training <- regressionData[ inTraining,]
+testing  <- regressionData[-inTraining,]
+
+set.seed(23)
+fit <- train(
+    local_electrons ~ ., 
+    data = training, 
+    method = "lm")
+
+myPred <- predict(fit, newdata = testing)
+
+fit
+
+postResample(pred = myPred, obs = testing$local_electrons)
+
+rm(regressionData, inTraining, training, testing, fit, myPred)
+gc()
+```
+
+## Klasyfikacja - predykcja wartoœci res_name ##
+```{r Klasyfikacjam, warning=FALSE}
+set.seed(23)
+classificationData <- data_top_res_names  %>%
+  select(-blob_coverage, -res_coverage)
+
+classificationData$res_name <- as.factor(classificationData$res_name)
+
+#knitr::kable(sapply(classificationData, class)) # To see data types
+  
+inTraining <- createDataPartition(
+        y = classificationData$res_name,
+        p = .70,
+        list = FALSE)
+
+training <- classificationData[ inTraining,]
+testing  <- classificationData[-inTraining,]
+
+ctrl <- trainControl(
+    method = "repeatedcv",
+    number = 2,
+    repeats = 5)
+
+set.seed(23)
+fit <- train(
+    res_name ~ ., 
+    data = training, 
+    method = "rf",
+    trControl = ctrl,
+    ntree = 10,
+    na.action  = na.pass)
+
+fit
+
+rfClasses <- predict(fit, newdata = testing)
+confusionMatrix(data = rfClasses, testing$res_name)
+
+rm(regressionData, inTraining, training, testing, fit, rfClasses)
+gc()
+```
