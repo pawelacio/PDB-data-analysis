@@ -53,7 +53,6 @@ filtered_data <- project_data %>%
   filter(!res_name %in% res_name_to_remove)
 
 rm(project_data)
-gc()
 
 dim(filtered_data)
 ```
@@ -68,7 +67,6 @@ data_without_NA <- filtered_data %>%
   replace(is.na(.), 0)
 
 rm(filtered_data)
-gc()
 ```
 
 ## Podstawowe statystyki ##
@@ -91,7 +89,6 @@ data_top_res_names <- data_without_NA %>%
   filter(res_name %in% top_res_names$res_name )
 
 rm(data_without_NA)
-gc()
 
 dim(data_top_res_names)
 ```
@@ -112,7 +109,6 @@ best <- filter(corelationDF, value > 0.9, var1 != var2) %>%
 knitr::kable(best)
 
 rm(corelationDF)
-gc()
 ```
 
 ## Liczba przyk³adów klas ##
@@ -126,7 +122,6 @@ sum(data_grouped_by_res_name$count)
 knitr::kable(data_grouped_by_res_name)
 
 rm(data_grouped_by_res_name)
-gc()
 ```
 
 ## Wykresy rozk³adów liczby atomów ##
@@ -140,7 +135,6 @@ plot_2 <- ggplot(data_top_res_names, aes(local_res_atom_non_h_electron_sum)) +
 ggplotly(plot_2)
 
 rm(plot_1, plot_2)
-gc()
 ```
 
 ## Klasy z najwiêksz¹ niezgodnoœci¹ ##
@@ -190,20 +184,19 @@ p <- ggplot(meltData, aes(x="", value)) +
 plot(p)
 
 rm(dataToSHow, meltData, p)
-gc()
 
 ```
 
 ## Regresja ##
-#### Przewidywanie liczby elektronów - *local_electrons* ####
-```{r regresja, message=FALSE, warning=FALSE}
+#### Przewidywanie liczby elektronów - *local_res_atom_non_h_electron_sum* ####
+```{r regresja 1, message=FALSE, warning=FALSE}
 set.seed(23)
 regressionData <- data_top_res_names %>%
   select_if(is.numeric)
 
 
 inTraining <- createDataPartition(
-        y = regressionData$local_electrons,
+        y = regressionData$local_res_atom_non_h_electron_sum,
         p = .70,
         list = FALSE)
 
@@ -220,10 +213,39 @@ myPred <- predict(fit, newdata = testing)
 
 fit
 
-postResample(pred = myPred, obs = testing$local_electrons)
+postResample(pred = myPred, obs = testing$local_res_atom_non_h_electron_sum)
 
 rm(regressionData, inTraining, training, testing, fit, myPred)
-gc()
+```
+
+#### Przewidywanie liczby atomów - *local_res_atom_non_h_count* ####
+```{r regresja 2, message=FALSE, warning=FALSE}
+set.seed(23)
+regressionData <- data_top_res_names %>%
+  select_if(is.numeric)
+
+
+inTraining <- createDataPartition(
+        y = regressionData$local_res_atom_non_h_count,
+        p = .70,
+        list = FALSE)
+
+training <- regressionData[ inTraining,]
+testing  <- regressionData[-inTraining,]
+
+set.seed(23)
+fit <- train(
+    local_electrons ~ ., 
+    data = training, 
+    method = "lm")
+
+myPred <- predict(fit, newdata = testing)
+
+fit
+
+postResample(pred = myPred, obs = testing$local_res_atom_non_h_count)
+
+rm(regressionData, inTraining, training, testing, fit, myPred)
 ```
 
 ## Klasyfikacja - predykcja wartoœci res_name ##
@@ -264,5 +286,4 @@ rfClasses <- predict(fit, newdata = testing)
 confusionMatrix(data = rfClasses, testing$res_name)
 
 rm(regressionData, inTraining, training, testing, fit, rfClasses)
-gc()
 ```
