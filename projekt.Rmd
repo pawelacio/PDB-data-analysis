@@ -34,6 +34,8 @@ library(data.table)
 library(reshape)
 library(caret)
 library(dplyr)
+library(knitr)
+library(kableExtra)
 ```
 
 ## Wczytanie danych ##
@@ -72,7 +74,9 @@ rm(filtered_data)
 
 ## Podstawowe statystyki ##
 ```{r Podsumowanie, error=FALSE, warning=FALSE }
-knitr::kable(t(summary(data_without_NA)))
+kable(summary(data_without_NA)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  scroll_box(width = "100%")
 dim(data_without_NA)
 ```
 
@@ -107,7 +111,9 @@ corelationDF <- data_top_res_names %>%
 best <- filter(corelationDF, value > 0.9, var1 != var2) %>%
   arrange(desc(value))
 
-knitr::kable(best)
+kable(best) %>%
+  kable_styling(bootstrap_options = c("striped")) %>%
+  scroll_box(height = "500px")
 
 rm(corelationDF)
 ```
@@ -120,7 +126,9 @@ data_grouped_by_res_name <- data_top_res_names %>%
   arrange(desc(count))
 
 sum(data_grouped_by_res_name$count)
-knitr::kable(data_grouped_by_res_name)
+
+kable(data_grouped_by_res_name) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 
 rm(data_grouped_by_res_name)
 ```
@@ -147,7 +155,8 @@ data_top_res_names %>%
   mutate(diff = abs(local_res_atom_non_h_count - dict_atom_non_h_count)) %>%
   arrange(desc(diff)) %>%
   head(10) %>%
-  knitr::kable()
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 ## Klasy z najwiêksz¹ niezgodnoœci¹ ##
@@ -159,7 +168,8 @@ data_top_res_names %>%
   mutate(diff = abs(local_res_atom_non_h_electron_sum - dict_atom_non_h_electron_sum)) %>%
   arrange(desc(diff)) %>%
   head(10) %>%
-  knitr::kable()
+  kable() %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 ## Rozk³ad wartoœci zmiennych part_01 ##
