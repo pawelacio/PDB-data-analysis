@@ -1,7 +1,7 @@
 ---
 title: '[PDB] Projekt z analizy danych'
 author: "Pawel Kaczmarek"
-date: "4 listopada 2018"
+date: " `r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
     fig_caption: yes
@@ -42,7 +42,7 @@ library(kableExtra)
 ```{r Wczytanie danych, message=FALSE, warning=FALSE}
 colsToRemove = c("title","pdb_code", "res_id", "chain_id", "local_BAa", "local_NPa", "local_Ra", "local_RGa", "local_SRGa", "local_CCSa", "local_CCPa", "local_ZOa", "local_ZDa", "local_ZD_minus_a", "local_ZD_plus_a", "local_res_atom_count", "local_res_atom_non_h_occupancy_sum", "local_res_atom_non_h_electron_occupancy_sum", "local_res_atom_C_count", "local_res_atom_N_count", "local_res_atom_O_count", "local_res_atom_S_count", "dict_atom_C_count", "dict_atom_N_count", "dict_atom_O_count", "dict_atom_S_count","fo_col", "fc_col", "weight_col", "grid_space", "solvent_radius", "solvent_opening_radius", "part_step_FoFc_std_min", "part_step_FoFc_std_max", "part_step_FoFc_std_step","skeleton_data", "skeleton_cycle_4", "skeleton_diameter","skeleton_cycle_6","skeleton_cycle_7","skeleton_closeness_006_008","skeleton_closeness_002_004","skeleton_cycle_3", "skeleton_avg_degree", "skeleton_closeness_004_006", "skeleton_closeness_010_012", "skeleton_closeness_012_014", "skeleton_edges", "skeleton_radius", "skeleton_cycle_8_plus", "skeleton_closeness_020_030","skeleton_deg_5_plus", "skeleton_closeness_016_018", "skeleton_closeness_008_010", "skeleton_closeness_018_020", "skeleton_average_clustering", "skeleton_closeness_040_050", "skeleton_closeness_014_016", "skeleton_center", "skeleton_closeness_000_002", "skeleton_density", "skeleton_closeness_030_040", "skeleton_deg_4", "skeleton_deg_0", "skeleton_deg_1", "skeleton_deg_2", "skeleton_deg_3", "skeleton_graph_clique_number", "skeleton_nodes", "skeleton_cycles", "skeleton_cycle_5", "skeleton_closeness_050_plus", "skeleton_periphery")
 
-project_data <- fread("all_summary.csv", header = TRUE, drop = colsToRemove)
+project_data <- fread("F:/all_summary/into61.csv/xaa.csv", header = TRUE, drop = colsToRemove)
 dim(project_data)
 ```
 
@@ -132,21 +132,36 @@ kable(data_grouped_by_res_name) %>%
 rm(data_grouped_by_res_name)
 ```
 
-## Wykresy rozk³adów liczby atomów ##
+## Wykresy rozk³adów##
+### Liczba atomów ###
 ```{r Wykresy }
 plot_1 <- ggplot(data_top_res_names, aes(local_res_atom_non_h_count)) +
-  geom_histogram(binwidth = 2)
+  geom_histogram(binwidth = 2) +
+  xlab("wartoœæ") +
+  ylab("liczba") +
+  ggtitle("Rozk³ad liczby atomów")
+
 ggplotly(plot_1)
 
+rm(plot_1)
+```
+
+### Liczba elektronów ###
+```{r Wykres2 }
+
 plot_2 <- ggplot(data_top_res_names, aes(local_res_atom_non_h_electron_sum)) +
-  geom_histogram(binwidth = 20)
+  geom_histogram(binwidth = 20) +
+  xlab("wartoœæ") +
+  ylab("liczba") +
+  ggtitle("Rozk³ad liczby elektronów")
+
 ggplotly(plot_2)
 
-rm(plot_1, plot_2)
+rm(plot_2)
 ```
 
 ## Klasy z najwiêksz¹ niezgodnoœci¹ ##
-#### *local_res_atom_non_h_count* **vs** *dict_atom_non_h_count* ####
+### *local_res_atom_non_h_count* **vs** *dict_atom_non_h_count* ###
 ```{r Tabela rozbieznosci 1 }
 data_top_res_names %>%
   select(res_name, local_res_atom_non_h_count, dict_atom_non_h_count) %>%
@@ -158,8 +173,7 @@ data_top_res_names %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-## Klasy z najwiêksz¹ niezgodnoœci¹ ##
-#### *local_res_atom_non_h_electron_sum* **vs** *dict_atom_non_h_electron_sum* ####
+### *local_res_atom_non_h_electron_sum* **vs** *dict_atom_non_h_electron_sum* ###
 ```{r Tabela rozbieznosci 2 }
 data_top_res_names %>%
   select(res_name, local_res_atom_non_h_electron_sum, dict_atom_non_h_electron_sum) %>%
@@ -204,12 +218,12 @@ p <- ggplot(meltData, aes(x="", value)) +
   geom_boxplot(size=.75, outlier.shape = NA ) +
   stat_summary(fun.data=mean_fun, geom="text", size=3) + 
   stat_summary(fun.y=mean, geom="point", shape=20, size=5, color="red") +
-  facet_wrap(~column_name, scales = "free", ncol = 6)
+  facet_wrap(~column_name, scales = "free", ncol = 6) + 
+  ggtitle("Rozk³ad wartoœci dla kolumn part_01")
 
 plot(p)
 
 rm(dataToSHow, removed_out_data, meltData, p)
-
 ```
 
 ## Regresja ##
@@ -280,9 +294,7 @@ classificationData <- data_top_res_names  %>%
   select(-blob_coverage, -res_coverage)
 
 classificationData$res_name <- as.factor(classificationData$res_name)
-
-#knitr::kable(sapply(classificationData, class)) # To see data types
-  
+ 
 inTraining <- createDataPartition(
         y = classificationData$res_name,
         p = .70,
